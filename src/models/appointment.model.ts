@@ -59,6 +59,19 @@ const appointmentSchema = new Schema<IAppointment>(
   }
 );
 
+// Prevent double bookings for the same doctor at the same date & time slot
+appointmentSchema.index(
+  { doctor: 1, appointmentDate: 1, timeSlot: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: { $ne: "Cancelled" } },
+  }
+);
+
+// Indexes for fast lookups by patient or doctor
+appointmentSchema.index({ patient: 1 });
+appointmentSchema.index({ doctor: 1, appointmentDate: 1 });
+
 const Appointment = mongoose.model<IAppointment>(
   "Appointment",
   appointmentSchema
