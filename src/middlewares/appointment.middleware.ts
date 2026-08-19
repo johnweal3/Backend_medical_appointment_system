@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
 
-// Validation for creating an appointment
+// Middleware: Validate input when creating an appointment
 export const validateCreateAppointment = (
   req: Request,
   res: Response,
@@ -62,7 +62,7 @@ export const validateCreateAppointment = (
   next();
 };
 
-// Validation for update status payload
+// Middleware: Validate appointment status updates
 export const validateUpdateStatus = (
   req: Request,
   res: Response,
@@ -81,7 +81,7 @@ export const validateUpdateStatus = (
   next();
 };
 
-// Validation for Mongo ObjectId parameters
+// Middleware: Validate MongoDB ObjectId URL parameter
 export const validateAppointmentId = (
   req: Request,
   res: Response,
