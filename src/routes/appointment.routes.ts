@@ -10,7 +10,7 @@ import {
   validateCreateAppointment,
   validateUpdateStatus,
   validateAppointmentId,
-} from "../validators/appointment.validator";
+} from "../middlewares/appointment.middleware";
 import { protect, restrictTo } from "../middlewares/auth.middleware";
 
 const router = Router();
@@ -94,7 +94,6 @@ const router = Router();
  *   description: Appointment management endpoints
  */
 
-// Apply authentication middleware to all routes below
 router.use(protect);
 
 /**
@@ -114,19 +113,6 @@ router.use(protect);
  *     responses:
  *       201:
  *         description: Appointment booked successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Appointment booked successfully"
- *                 appointment:
- *                   $ref: '#/components/schemas/Appointment'
  *       400:
  *         description: Validation error or slot already booked
  *       401:
@@ -140,28 +126,13 @@ router.post("/", validateCreateAppointment, createAppointment);
  * @swagger
  * /api/appointments/my-appointments:
  *   get:
- *     summary: Get all appointments for the logged-in user (Patient or Doctor)
+ *     summary: Get all appointments for the logged-in user
  *     tags: [Appointments]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of appointments
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 count:
- *                   type: integer
- *                   example: 2
- *                 appointments:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Appointment'
  *       401:
  *         description: Unauthorized
  *       500:
@@ -183,7 +154,6 @@ router.get("/my-appointments", getMyAppointments);
  *         required: true
  *         schema:
  *           type: string
- *         description: MongoDB ObjectId of the appointment
  *     responses:
  *       200:
  *         description: Appointment details retrieved successfully
@@ -210,12 +180,11 @@ router.get("/:id", validateAppointmentId, getAppointmentById);
  *         required: true
  *         schema:
  *           type: string
- *         description: MongoDB ObjectId of the appointment
  *     responses:
  *       200:
  *         description: Appointment cancelled successfully
  *       400:
- *         description: Appointment already cancelled or invalid ID
+ *         description: Appointment already cancelled
  *       404:
  *         description: Appointment not found
  *       500:
@@ -237,7 +206,6 @@ router.patch("/:id/cancel", validateAppointmentId, cancelAppointment);
  *         required: true
  *         schema:
  *           type: string
- *         description: MongoDB ObjectId of the appointment
  *     requestBody:
  *       required: true
  *       content:
@@ -248,9 +216,9 @@ router.patch("/:id/cancel", validateAppointmentId, cancelAppointment);
  *       200:
  *         description: Status updated successfully
  *       400:
- *         description: Invalid status value or ID format
+ *         description: Invalid status value
  *       403:
- *         description: Access denied (Requires Doctor or Admin role)
+ *         description: Access denied
  *       404:
  *         description: Appointment not found
  *       500:
