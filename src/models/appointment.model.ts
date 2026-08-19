@@ -1,5 +1,6 @@
 import mongoose, { Document, Schema } from "mongoose";
 
+// Types defined directly in the model file
 export type AppointmentStatus =
   | "Pending"
   | "Confirmed"
@@ -59,7 +60,7 @@ const appointmentSchema = new Schema<IAppointment>(
   }
 );
 
-// Prevent double bookings for the same doctor at the same date & time slot
+// Indexes
 appointmentSchema.index(
   { doctor: 1, appointmentDate: 1, timeSlot: 1 },
   {
@@ -68,7 +69,6 @@ appointmentSchema.index(
   }
 );
 
-// Indexes for fast lookups by patient or doctor
 appointmentSchema.index({ patient: 1 });
 appointmentSchema.index({ doctor: 1, appointmentDate: 1 });
 

@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 
-import Appointment from "../models/appointment.model";
+// Import model and types directly from appointment.model
+import Appointment, { AppointmentStatus } from "../models/appointment.model";
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -178,7 +179,7 @@ export const updateAppointmentStatus = async (
 ) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status }: { status: AppointmentStatus } = req.body;
 
     const appointment = await Appointment.findByIdAndUpdate(
       id,

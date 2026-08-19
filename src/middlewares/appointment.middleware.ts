@@ -1,7 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
 
-// Middleware: Validate input when creating an appointment
+// Import type directly from appointment.model
+import { AppointmentStatus } from "../models/appointment.model";
+
+// Validate creation input
 export const validateCreateAppointment = (
   req: Request,
   res: Response,
@@ -62,14 +65,19 @@ export const validateCreateAppointment = (
   next();
 };
 
-// Middleware: Validate appointment status updates
+// Validate status updates
 export const validateUpdateStatus = (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const { status } = req.body;
-  const validStatuses = ["Pending", "Confirmed", "Completed", "Cancelled"];
+  const { status }: { status: AppointmentStatus } = req.body;
+  const validStatuses: AppointmentStatus[] = [
+    "Pending",
+    "Confirmed",
+    "Completed",
+    "Cancelled",
+  ];
 
   if (!status || !validStatuses.includes(status)) {
     return res.status(400).json({
@@ -81,7 +89,7 @@ export const validateUpdateStatus = (
   next();
 };
 
-// Middleware: Validate MongoDB ObjectId URL parameter
+// Validate Mongo ObjectId
 export const validateAppointmentId = (
   req: Request,
   res: Response,
