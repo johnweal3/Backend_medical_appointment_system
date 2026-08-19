@@ -4,10 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-  "dev": "nodemon --exec tsx src/server.ts",
-  "start": "tsx src/server.ts",
-  "build": "tsc"
-},
+    "dev": "nodemon --exec tsx src/server.ts",
+    "start": "tsx src/server.ts",
+    "build": "tsc"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/johnweal3/Backend_medical_appointment_system.git"
