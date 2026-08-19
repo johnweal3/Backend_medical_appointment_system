@@ -14,6 +14,8 @@ app.get("/", (req, res) => {
     message: "Medical Appointment System API is running"
   });
 });
+import appointmentRoutes from "./routes/appointment.routes";
+app.use("/api/appointments", appointmentRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
