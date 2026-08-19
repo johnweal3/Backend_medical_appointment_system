@@ -11,7 +11,7 @@ import {
   validateUpdateStatus,
   validateAppointmentId,
 } from "../validators/appointment.validator";
-import { protect, restrictTo } from "../middleware/auth.middleware";
+import { protect, restrictTo } from "../middlewares/auth.middleware";
 
 const router = Router();
 
