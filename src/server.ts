@@ -1,3 +1,6 @@
+import swaggerUi from "swagger-ui-express";
+import swaggerSpec from "./config/swagger";
+import scheduleRoutes from "./routes/schedule.routes";
 import express from "express";
 import dotenv from "dotenv";
 
