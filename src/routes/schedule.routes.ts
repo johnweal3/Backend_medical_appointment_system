@@ -3,7 +3,7 @@ import express from "express";
 import {createSchedule,getSchedules,getScheduleById,getDoctorSchedules,updateSchedule,deleteSchedule,
 } from "../controllers/schedule.controller";
 
-import { validateSchedule } from "../validators/schedule.validator";
+import { validateSchedule } from "../middlewares/schedule.validator";
 
 const router = express.Router();
 router.post("/", validateSchedule, createSchedule);

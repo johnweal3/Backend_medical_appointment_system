@@ -143,7 +143,6 @@ export const deleteSchedule = async (req: Request, res: Response) => {
         message: "Cannot delete schedule with future confirmed appointments",
       });
     }
-    await Schedule.findByIdAndDelete(scheduleId);
 
     const schedules = await Schedule.find();
     const scheduleIndex = schedules.findIndex((Schedule) => {
