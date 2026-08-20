@@ -1,208 +1,362 @@
 import { Request, Response } from "express";
+import mongoose from "mongoose";
+import { Appointment } from "../models/appointment.model";
+import { Schedule } from "../models/schedule.model";
 
-// Import model and types directly from appointment.model
-import Appointment, { AppointmentStatus } from "../models/appointment.model";
+// Statuses that still hold a time slot
+const ACTIVE_STATUSES = ["Pending", "Confirmed"];
 
-export interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    role: string;
-  };
-}
-
-// @desc    Book a new appointment
-// @route   POST /api/appointments
+// Create Appointment
 export const createAppointment = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ) => {
   try {
-    const { doctor, appointmentDate, timeSlot, notes } = req.body;
-    const patient = req.user?.id;
+    const {
+      patientId,
+      doctorId,
+      date,
+      startTime,
+      endTime,
+      notes,
+    } = req.body;
 
-    if (!patient) {
-      return res.status(401).json({
-        success: false,
-        message: "User not authenticated",
-      });
-    }
+    // Get day name from appointment date
+    const dayOfWeek = new Date(date).toLocaleDateString(
+      "en-US",
+      { weekday: "long" }
+    );
 
-    const existingAppointment = await Appointment.findOne({
-      doctor,
-      appointmentDate,
-      timeSlot,
-      status: { $ne: "Cancelled" },
+    // Check doctor's schedule
+    const doctorSchedule = await Schedule.findOne({
+      doctorId: doctorId,
+      dayOfWeek: dayOfWeek,
     });
 
-    if (existingAppointment) {
+    if (!doctorSchedule) {
       return res.status(400).json({
-        success: false,
-        message: "This time slot is already booked for the selected doctor",
+        message: "Doctor is not available on this day",
       });
     }
 
-    const appointment = await Appointment.create({
-      patient,
-      doctor,
-      appointmentDate,
-      timeSlot,
+    // Check requested time is inside doctor's schedule
+    if (
+      startTime < doctorSchedule.startTime ||
+      endTime > doctorSchedule.endTime
+    ) {
+      return res.status(400).json({
+        message: "Doctor is not available at this time",
+      });
+    }
+
+    // Check that end time is after start time
+    if (startTime >= endTime) {
+      return res.status(400).json({
+        message: "End time must be after start time",
+      });
+    }
+
+    // Get doctor's active appointments on this date
+    const doctorAppointments = await Appointment.find({
+      doctorId: doctorId,
+      date: date,
+      status: { $in: ACTIVE_STATUSES },
+    });
+
+    // Check doctor double-booking
+    const doctorOverlap = doctorAppointments.find((appointment) => {
+      return (
+        startTime < appointment.endTime &&
+        endTime > appointment.startTime
+      );
+    });
+
+    if (doctorOverlap) {
+      return res.status(409).json({
+        message: "Doctor already has an appointment at this time",
+      });
+    }
+
+    // Check patient isn't double-booking themselves
+    const patientOverlap = await Appointment.findOne({
+      patientId: patientId,
+      date: date,
+      status: { $in: ACTIVE_STATUSES },
+      startTime: { $lt: endTime },
+      endTime: { $gt: startTime },
+    });
+
+    if (patientOverlap) {
+      return res.status(409).json({
+        message: "You already have an appointment at this time",
+      });
+    }
+
+    // Create appointment
+    const newAppointment = await Appointment.create({
+      patientId,
+      doctorId,
+      date,
+      startTime,
+      endTime,
       notes,
       status: "Pending",
     });
 
     return res.status(201).json({
-      success: true,
       message: "Appointment booked successfully",
-      appointment,
+      newAppointment,
     });
+
   } catch (error) {
     console.error("Create Appointment Error:", error);
+
     return res.status(500).json({
-      success: false,
-      message: "Failed to create appointment",
+      message: "Failed to book appointment",
     });
   }
 };
 
-// @desc    Get user appointments (Patient gets theirs, Doctor gets assigned ones)
-// @route   GET /api/appointments/my-appointments
-export const getMyAppointments = async (
-  req: AuthenticatedRequest,
+
+// Get All Appointments
+export const getAppointments = async (
+  req: Request,
   res: Response
 ) => {
   try {
-    const userId = req.user?.id;
-    const userRole = req.user?.role;
+    // Optional filter, e.g. GET /appointments?status=Confirmed
+    const { status } = req.query;
+    const filter = status ? { status } : {};
 
-    const query =
-      userRole === "Doctor" ? { doctor: userId } : { patient: userId };
+    const appointments = await Appointment.find(filter);
 
-    const appointments = await Appointment.find(query)
-      .populate("patient", "name email phone")
-      .populate("doctor", "name specialization")
-      .sort({ appointmentDate: 1 });
+    return res.status(200).json(appointments);
 
-    return res.status(200).json({
-      success: true,
-      count: appointments.length,
-      appointments,
-    });
   } catch (error) {
-    console.error("Get My Appointments Error:", error);
+    console.error("Get Appointments Error:", error);
+
     return res.status(500).json({
-      success: false,
-      message: "Failed to fetch appointments",
+      message: "Failed to get appointments",
     });
   }
 };
 
-// @desc    Get single appointment details
-// @route   GET /api/appointments/:id
+
+// Get Appointment By ID
 export const getAppointmentById = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ) => {
   try {
-    const { id } = req.params;
+    const appointmentId = req.params.id;
 
-    const appointment = await Appointment.findById(id)
-      .populate("patient", "name email phone")
-      .populate("doctor", "name specialization");
+    if (!mongoose.Types.ObjectId.isValid(appointmentId)) {
+      return res.status(400).json({
+        message: "Invalid appointment id",
+      });
+    }
 
-    if (!appointment) {
+    const targetAppointment =
+      await Appointment.findById(appointmentId);
+
+    if (!targetAppointment) {
       return res.status(404).json({
-        success: false,
         message: "Appointment not found",
       });
     }
 
-    return res.status(200).json({
-      success: true,
-      appointment,
-    });
+    return res.status(200).json(targetAppointment);
+
   } catch (error) {
-    console.error("Get Appointment By ID Error:", error);
+    console.error("Get Appointment Error:", error);
+
     return res.status(500).json({
-      success: false,
-      message: "Failed to fetch appointment details",
+      message: "Failed to get appointment",
     });
   }
 };
 
-// @desc    Cancel an appointment
-// @route   PATCH /api/appointments/:id/cancel
-export const cancelAppointment = async (
-  req: AuthenticatedRequest,
+
+// Get Doctor Appointments
+export const getDoctorAppointments = async (
+  req: Request,
   res: Response
 ) => {
   try {
-    const { id } = req.params;
+    const doctorId = req.params.doctorId;
 
-    const appointment = await Appointment.findById(id);
+    if (!mongoose.Types.ObjectId.isValid(doctorId)) {
+      return res.status(400).json({
+        message: "Invalid doctor id",
+      });
+    }
+
+    const appointments = await Appointment.find({
+      doctorId: doctorId,
+    });
+
+    return res.status(200).json(appointments);
+
+  } catch (error) {
+    console.error("Get Doctor Appointments Error:", error);
+
+    return res.status(500).json({
+      message: "Failed to get doctor appointments",
+    });
+  }
+};
+
+
+// Get Patient Appointments (appointment history)
+export const getPatientAppointments = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const patientId = req.params.patientId;
+
+    if (!mongoose.Types.ObjectId.isValid(patientId)) {
+      return res.status(400).json({
+        message: "Invalid patient id",
+      });
+    }
+
+    const appointments = await Appointment.find({
+      patientId: patientId,
+    });
+
+    return res.status(200).json(appointments);
+
+  } catch (error) {
+    console.error("Get Patient Appointments Error:", error);
+
+    return res.status(500).json({
+      message: "Failed to get patient appointments",
+    });
+  }
+};
+
+
+// Cancel Appointment
+export const cancelAppointment = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const appointmentId = req.params.id;
+
+    if (!mongoose.Types.ObjectId.isValid(appointmentId)) {
+      return res.status(400).json({
+        message: "Invalid appointment id",
+      });
+    }
+
+    const appointment =
+      await Appointment.findById(appointmentId);
 
     if (!appointment) {
       return res.status(404).json({
-        success: false,
         message: "Appointment not found",
       });
     }
+
+    // TODO: once auth is ready, only the owning patient or an admin can cancel
 
     if (appointment.status === "Cancelled") {
       return res.status(400).json({
-        success: false,
         message: "Appointment is already cancelled",
       });
     }
 
+    if (appointment.status === "Completed") {
+      return res.status(400).json({
+        message: "Completed appointments cannot be cancelled",
+      });
+    }
+
+    // Can't cancel an appointment that already started
+    const appointmentDateTime = new Date(
+      `${appointment.date}T${appointment.startTime}`
+    );
+
+    if (appointmentDateTime <= new Date()) {
+      return res.status(400).json({
+        message: "Cannot cancel an appointment that has already started",
+      });
+    }
+
     appointment.status = "Cancelled";
+
     await appointment.save();
 
     return res.status(200).json({
-      success: true,
       message: "Appointment cancelled successfully",
       appointment,
     });
+
   } catch (error) {
     console.error("Cancel Appointment Error:", error);
+
     return res.status(500).json({
-      success: false,
       message: "Failed to cancel appointment",
     });
   }
 };
 
-// @desc    Update appointment status (Doctor / Admin)
-// @route   PATCH /api/appointments/:id/status
+
+// Update Appointment Status (doctor confirms/completes an appointment)
 export const updateAppointmentStatus = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ) => {
   try {
-    const { id } = req.params;
-    const { status }: { status: AppointmentStatus } = req.body;
+    const appointmentId = req.params.id;
+    const { status } = req.body;
 
-    const appointment = await Appointment.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true, runValidators: true }
-    );
+    if (!mongoose.Types.ObjectId.isValid(appointmentId)) {
+      return res.status(400).json({
+        message: "Invalid appointment id",
+      });
+    }
+
+    const validStatuses = ["Pending", "Confirmed", "Completed", "Cancelled"];
+
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        message: "Invalid appointment status",
+      });
+    }
+
+    const appointment =
+      await Appointment.findById(appointmentId);
 
     if (!appointment) {
       return res.status(404).json({
-        success: false,
         message: "Appointment not found",
       });
     }
 
+    // TODO: once auth is ready, only the owning doctor or an admin can update
+
+    if (appointment.status === "Completed") {
+      return res.status(400).json({
+        message: "Completed appointments cannot be edited",
+      });
+    }
+
+    appointment.status = status;
+
+    await appointment.save();
+
     return res.status(200).json({
-      success: true,
-      message: `Appointment status updated to ${status}`,
+      message: "Appointment status updated successfully",
       appointment,
     });
+
   } catch (error) {
-    console.error("Update Status Error:", error);
+    console.error("Update Appointment Status Error:", error);
+
     return res.status(500).json({
-      success: false,
       message: "Failed to update appointment status",
     });
   }

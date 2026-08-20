@@ -1,19 +1,18 @@
-import { Router } from "express";
+import express from "express";
+
 import {
   createAppointment,
-  getMyAppointments,
+  getAppointments,
   getAppointmentById,
+  getDoctorAppointments,
+  getPatientAppointments,
   cancelAppointment,
   updateAppointmentStatus,
 } from "../controllers/appointment.controller";
-import {
-  validateCreateAppointment,
-  validateUpdateStatus,
-  validateAppointmentId,
-} from "../middlewares/appointment.middleware";
-import { protect, restrictTo } from "../middlewares/auth.middleware";
 
-const router = Router();
+import { validateAppointment } from "../middlewares/appointment.middleware";
+
+const router = express.Router();
 
 /**
  * @swagger
@@ -21,133 +20,131 @@ const router = Router();
  *   schemas:
  *     Appointment:
  *       type: object
+ *       required:
+ *         - patientId
+ *         - doctorId
+ *         - date
+ *         - startTime
+ *         - endTime
  *       properties:
- *         _id:
+ *         patientId:
  *           type: string
- *           example: "64e3f1a2b9d1c82f4c1e2a3b"
- *         patient:
+ *           example: 64f123abc456def789012345
+ *         doctorId:
  *           type: string
- *           example: "64e3f1a2b9d1c82f4c1e2a11"
- *         doctor:
+ *           example: 64f123abc456def789012999
+ *         date:
  *           type: string
- *           example: "64e3f1a2b9d1c82f4c1e2a22"
- *         appointmentDate:
+ *           example: "2026-09-01"
+ *         startTime:
  *           type: string
- *           format: date
- *           example: "2026-09-15T00:00:00.000Z"
- *         timeSlot:
+ *           example: "10:00"
+ *         endTime:
  *           type: string
- *           example: "10:00 AM - 10:30 AM"
+ *           example: "10:30"
+ *         notes:
+ *           type: string
+ *           example: "First visit, knee pain"
  *         status:
  *           type: string
  *           enum: [Pending, Confirmed, Completed, Cancelled]
- *           example: "Pending"
- *         notes:
- *           type: string
- *           example: "Routine checkup and prescription renewal"
- *         createdAt:
- *           type: string
- *           format: date-time
- *         updatedAt:
- *           type: string
- *           format: date-time
- *
- *     CreateAppointmentInput:
- *       type: object
- *       required:
- *         - doctor
- *         - appointmentDate
- *         - timeSlot
- *       properties:
- *         doctor:
- *           type: string
- *           description: MongoDB ObjectId of the Doctor
- *           example: "64e3f1a2b9d1c82f4c1e2a22"
- *         appointmentDate:
- *           type: string
- *           format: date
- *           description: Must be a valid future date
- *           example: "2026-09-15"
- *         timeSlot:
- *           type: string
- *           example: "10:00 AM - 10:30 AM"
- *         notes:
- *           type: string
- *           maxLength: 500
- *           example: "Routine checkup"
- *
- *     UpdateStatusInput:
- *       type: object
- *       required:
- *         - status
- *       properties:
- *         status:
- *           type: string
- *           enum: [Pending, Confirmed, Completed, Cancelled]
- *           example: "Confirmed"
  */
 
 /**
  * @swagger
- * tags:
- *   name: Appointments
- *   description: Appointment management endpoints
- */
-
-router.use(protect);
-
-/**
- * @swagger
- * /api/appointments:
+ * /appointments:
  *   post:
  *     summary: Book a new appointment
- *     tags: [Appointments]
- *     security:
- *       - bearerAuth: []
+ *     tags: [Appointment]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/CreateAppointmentInput'
+ *             $ref: '#/components/schemas/Appointment'
  *     responses:
  *       201:
  *         description: Appointment booked successfully
  *       400:
- *         description: Validation error or slot already booked
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
+ *         description: Validation error
+ *       409:
+ *         description: Time slot already taken
  */
-router.post("/", validateCreateAppointment, createAppointment);
+router.post(
+  "/",
+  validateAppointment,
+  createAppointment
+);
 
 /**
  * @swagger
- * /api/appointments/my-appointments:
+ * /appointments:
  *   get:
- *     summary: Get all appointments for the logged-in user
- *     tags: [Appointments]
- *     security:
- *       - bearerAuth: []
+ *     summary: Get all appointments (optionally filter by status)
+ *     tags: [Appointment]
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [Pending, Confirmed, Completed, Cancelled]
  *     responses:
  *       200:
- *         description: List of appointments
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server error
+ *         description: Appointments retrieved successfully
  */
-router.get("/my-appointments", getMyAppointments);
+router.get(
+  "/",
+  getAppointments
+);
 
 /**
  * @swagger
- * /api/appointments/{id}:
+ * /appointments/doctor/{doctorId}:
  *   get:
- *     summary: Get appointment details by ID
- *     tags: [Appointments]
- *     security:
- *       - bearerAuth: []
+ *     summary: Get all appointments for a doctor
+ *     tags: [Appointment]
+ *     parameters:
+ *       - in: path
+ *         name: doctorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Doctor's appointments retrieved successfully
+ */
+router.get(
+  "/doctor/:doctorId",
+  getDoctorAppointments
+);
+
+/**
+ * @swagger
+ * /appointments/patient/{patientId}:
+ *   get:
+ *     summary: Get appointment history for a patient
+ *     tags: [Appointment]
+ *     parameters:
+ *       - in: path
+ *         name: patientId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Patient's appointments retrieved successfully
+ */
+router.get(
+  "/patient/:patientId",
+  getPatientAppointments
+);
+
+/**
+ * @swagger
+ * /appointments/{id}:
+ *   get:
+ *     summary: Get a single appointment by id
+ *     tags: [Appointment]
  *     parameters:
  *       - in: path
  *         name: id
@@ -156,24 +153,21 @@ router.get("/my-appointments", getMyAppointments);
  *           type: string
  *     responses:
  *       200:
- *         description: Appointment details retrieved successfully
- *       400:
- *         description: Invalid appointment ID format
+ *         description: Appointment retrieved successfully
  *       404:
  *         description: Appointment not found
- *       500:
- *         description: Server error
  */
-router.get("/:id", validateAppointmentId, getAppointmentById);
+router.get(
+  "/:id",
+  getAppointmentById
+);
 
 /**
  * @swagger
- * /api/appointments/{id}/cancel:
- *   patch:
+ * /appointments/{id}/cancel:
+ *   put:
  *     summary: Cancel an appointment
- *     tags: [Appointments]
- *     security:
- *       - bearerAuth: []
+ *     tags: [Appointment]
  *     parameters:
  *       - in: path
  *         name: id
@@ -184,22 +178,21 @@ router.get("/:id", validateAppointmentId, getAppointmentById);
  *       200:
  *         description: Appointment cancelled successfully
  *       400:
- *         description: Appointment already cancelled
+ *         description: Cannot cancel this appointment
  *       404:
  *         description: Appointment not found
- *       500:
- *         description: Server error
  */
-router.patch("/:id/cancel", validateAppointmentId, cancelAppointment);
+router.put(
+  "/:id/cancel",
+  cancelAppointment
+);
 
 /**
  * @swagger
- * /api/appointments/{id}/status:
- *   patch:
- *     summary: Update appointment status (Doctor/Admin only)
- *     tags: [Appointments]
- *     security:
- *       - bearerAuth: []
+ * /appointments/{id}/status:
+ *   put:
+ *     summary: Update an appointment's status (doctor confirms/completes it)
+ *     tags: [Appointment]
  *     parameters:
  *       - in: path
  *         name: id
@@ -211,24 +204,22 @@ router.patch("/:id/cancel", validateAppointmentId, cancelAppointment);
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/UpdateStatusInput'
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [Pending, Confirmed, Completed, Cancelled]
  *     responses:
  *       200:
- *         description: Status updated successfully
+ *         description: Appointment status updated successfully
  *       400:
- *         description: Invalid status value
- *       403:
- *         description: Access denied
+ *         description: Invalid status or appointment already completed
  *       404:
  *         description: Appointment not found
- *       500:
- *         description: Server error
  */
-router.patch(
+router.put(
   "/:id/status",
-  validateAppointmentId,
-  restrictTo("Doctor", "Admin"),
-  validateUpdateStatus,
   updateAppointmentStatus
 );
 
