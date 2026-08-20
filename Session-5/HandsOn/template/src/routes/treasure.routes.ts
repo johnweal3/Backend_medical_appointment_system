@@ -4,6 +4,7 @@ import {
   createTreasure,
   deleteTreasure,
 } from "../controllers/treasure.controller.js";
+import { protect, authorize } from "../middleware/auth.middleware.js";
 
 const router = Router();
 
@@ -19,9 +20,9 @@ const router = Router();
 router.get("/", getAllTreasures);
 
 // 🔒 Step 5️⃣: only authenticated explorers should reach this
-router.post("/", createTreasure);
+router.post("/", protect, createTreasure);
 
 // 🔒 Step 6️⃣: only a Captain should reach this
-router.delete("/:id", deleteTreasure);
+router.delete("/:id", protect, authorize("Captain"), deleteTreasure);
 
 export default router;
