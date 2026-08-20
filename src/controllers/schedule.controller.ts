@@ -1,3 +1,4 @@
+
 import { Request, Response } from "express";
 import {Schedule} from "../models/schedule.model";
 
@@ -95,6 +96,11 @@ export const updateSchedule = async (req: Request, res: Response) => {
         message: "Schedule not found",
       });
     }
+    if (targetSchedule.doctorId !== req.user.id) {
+      return res.status(403).json({
+        message: "You can only manage your own schedule",
+      });
+    }
     schedule.doctorId = doctorId;
     schedule.dayOfWeek = dayOfWeek;
     schedule.startTime = startTime;
@@ -123,6 +129,22 @@ export const deleteSchedule = async (req: Request, res: Response) => {
         message: "Id is required",
       });
     }
+    if (targetSchedule.doctorId !== req.user.id) {
+      return res.status(403).json({
+        message: "You can only manage your own schedule",
+      });
+    }
+    const futureAppointment = await Appointment.findOne({
+      doctorId: targetSchedule.doctorId,
+      status: "confirmed",
+    });
+    if (futureAppointment) {
+      return res.status(409).json({
+        message: "Cannot delete schedule with future confirmed appointments",
+      });
+    }
+    await Schedule.findByIdAndDelete(scheduleId);
+
     const schedules = await Schedule.find();
     const scheduleIndex = schedules.findIndex((Schedule) => {
       return scheduleId === Schedule.id;
