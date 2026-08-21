@@ -9,24 +9,32 @@ export interface AuthRequest extends Request {
 }
 
 export function protect(req: AuthRequest, res: Response, next: NextFunction): void {
-  // Accept the token returned by login through the Authorization header.
-  const authorization = req.headers.authorization;
-  const token = authorization?.startsWith("Bearer ")
-    ? authorization.slice(7)
-    : undefined;
+  // 1. Extract Authorization header regardless of casing
+  const authHeader = (req.headers.authorization || req.headers.Authorization) as string | undefined;
 
+  let token: string | undefined;
+  if (authHeader) {
+    const parts = authHeader.trim().split(" ");
+    // Check for "Bearer <token>" case-insensitively
+    if (parts.length === 2 && /^Bearer$/i.test(parts[0])) {
+      token = parts[1];
+    }
+  }
+
+  // 2. Return 401 if token is missing
   if (!token) {
     res.status(401).json({ message: "Unauthorized: No token provided" });
     return;
   }
 
   try {
-    // 2. Verify token
+    // 3. Verify JWT token
     const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET || "fallback_secret_key"
     );
 
+    // Validate payload structure
     if (
       typeof decoded === "string" ||
       typeof decoded.id !== "string" ||
@@ -36,25 +44,24 @@ export function protect(req: AuthRequest, res: Response, next: NextFunction): vo
       return;
     }
 
-    // 3. Attach decoded user info to request
+    // 4. Attach decoded user info to request
     req.user = {
       id: decoded.id,
       role: decoded.role as "patient" | "doctor" | "admin",
     };
 
-    // 4. Move to next middleware or controller
+    // 5. Pass to next middleware or controller
     next();
   } catch (error) {
     res.status(401).json({ message: "Unauthorized: Invalid or expired token" });
   }
 }
 
-
 export function authorize(...allowedRoles: string[]) {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
     const user = req.user;
 
-    // Check if user exists and has a permitted role
+    // Check if user exists on request and has a permitted role
     if (!user || !allowedRoles.includes(user.role)) {
       res.status(403).json({ message: "Forbidden: You do not have access" });
       return;
