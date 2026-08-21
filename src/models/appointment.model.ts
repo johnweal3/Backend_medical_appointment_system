@@ -1,45 +1,32 @@
-import mongoose, { Document, Schema } from "mongoose";
+import mongoose from "mongoose";
 
-export type AppointmentStatus =
-  | "Pending"
-  | "Confirmed"
-  | "Completed"
-  | "Cancelled";
-
-export interface IAppointment extends Document {
-  patient: mongoose.Types.ObjectId;
-  doctor: mongoose.Types.ObjectId;
-  appointmentDate: Date;
-  timeSlot: string;
-  status: AppointmentStatus;
-  notes?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-const appointmentSchema = new Schema<IAppointment>(
+const appointmentSchema = new mongoose.Schema(
   {
-    patient: {
-      type: Schema.Types.ObjectId,
+    patientId: {
+      type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
 
-    doctor: {
-      type: Schema.Types.ObjectId,
-      ref: "Doctor",
+    doctorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: true,
     },
 
-    appointmentDate: {
-      type: Date,
-      required: true,
-    },
-
-    timeSlot: {
+    date: {
       type: String,
       required: true,
-      trim: true,
+    },
+
+    startTime: {
+      type: String,
+      required: true,
+    },
+
+    endTime: {
+      type: String,
+      required: true,
     },
 
     status: {
@@ -50,8 +37,7 @@ const appointmentSchema = new Schema<IAppointment>(
 
     notes: {
       type: String,
-      trim: true,
-      maxlength: 500,
+      required: false,
     },
   },
   {
@@ -59,22 +45,7 @@ const appointmentSchema = new Schema<IAppointment>(
   }
 );
 
-// Prevent double bookings for the same doctor at the same date & time slot
-appointmentSchema.index(
-  { doctor: 1, appointmentDate: 1, timeSlot: 1 },
-  {
-    unique: true,
-    partialFilterExpression: { status: { $ne: "Cancelled" } },
-  }
-);
-
-// Indexes for fast lookups by patient or doctor
-appointmentSchema.index({ patient: 1 });
-appointmentSchema.index({ doctor: 1, appointmentDate: 1 });
-
-const Appointment = mongoose.model<IAppointment>(
+export const Appointment = mongoose.model(
   "Appointment",
   appointmentSchema
 );
-
-export default Appointment;

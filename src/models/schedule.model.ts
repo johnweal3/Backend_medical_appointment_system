@@ -35,6 +35,10 @@ const scheduleSchema = new mongoose.Schema(
       type: Number,
       default: 30,
     },
+    availability: {
+      type: Boolean,
+      default: true,
+    }
   },
 );
 

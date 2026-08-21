@@ -1,5 +1,8 @@
+
 import { Request, Response } from "express";
 import {Schedule} from "../models/schedule.model";
+import { Appointment } from "../models/appointment.model";
+import { AuthRequest } from "../middlewares/auth.middleware";
 
 // CREATE SCHEDULE
 export const createSchedule = async (req: Request, res: Response) => {
@@ -85,7 +88,7 @@ export const getDoctorSchedules = async (req: Request, res: Response) => {
 };
 
 // UPDATE SCHEDULE
-export const updateSchedule = async (req: Request, res: Response) => {
+export const updateSchedule = async (req: AuthRequest, res: Response) => {
   try {
     const {doctorId, dayOfWeek, startTime, endTime, slotDuration } = req.body;
     const schedule = await Schedule.findById(req.params.id);
@@ -93,6 +96,11 @@ export const updateSchedule = async (req: Request, res: Response) => {
     if (!schedule) {
       return res.status(404).json({
         message: "Schedule not found",
+      });
+    }
+    if (schedule.doctorId.toString() !== req.user?.id) {
+      return res.status(403).json({
+        message: "You can only manage your own schedule",
       });
     }
     schedule.doctorId = doctorId;
@@ -115,7 +123,7 @@ export const updateSchedule = async (req: Request, res: Response) => {
 };
 
 // DELETE SCHEDULE
-export const deleteSchedule = async (req: Request, res: Response) => {
+export const deleteSchedule = async (req: AuthRequest, res: Response) => {
   try {
     const scheduleId = req.params.id;
     if (!scheduleId) {
@@ -123,17 +131,30 @@ export const deleteSchedule = async (req: Request, res: Response) => {
         message: "Id is required",
       });
     }
-    const schedules = await Schedule.find();
-    const scheduleIndex = schedules.findIndex((Schedule) => {
-      return scheduleId === Schedule.id;
-    });
+    const targetSchedule = await Schedule.findById(scheduleId);
 
-    if (scheduleIndex === -1) {
+    if (!targetSchedule) {
       return res.status(404).json({
         message: "No schedule for this id",
       });
     }
-    schedules.splice(scheduleIndex, 1);
+
+    if (targetSchedule.doctorId.toString() !== req.user?.id) {
+      return res.status(403).json({
+        message: "You can only manage your own schedule",
+      });
+    }
+    const futureAppointment = await Appointment.findOne({
+      doctorId: targetSchedule.doctorId,
+      status: "Confirmed",
+    });
+    if (futureAppointment) {
+      return res.status(409).json({
+        message: "Cannot delete schedule with future confirmed appointments",
+      });
+    }
+
+    await targetSchedule.deleteOne();
 
     return res.status(200).json({
       message: "Schedule deleted successfully",
