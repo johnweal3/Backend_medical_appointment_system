@@ -1,5 +1,18 @@
-import { Request, Response, NextFunction } from "express";
-import mongoose from "mongoose";
+import {
+  Request,
+  Response,
+  NextFunction,
+} from "express";
+
+const VALID_DAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
 
 export const validateAppointment = (
   req: Request,
@@ -9,58 +22,55 @@ export const validateAppointment = (
   const {
     patientId,
     doctorId,
-    date,
+    dayOfWeek,
     startTime,
     endTime,
   } = req.body;
 
-  // Check required fields
-  if (!patientId || !doctorId || !date || !startTime || !endTime) {
+  // Required fields
+  if (
+    !patientId ||
+    !doctorId ||
+    !dayOfWeek ||
+    !startTime ||
+    !endTime
+  ) {
     return res.status(400).json({
-      success: false,
-      message: "All fields are required",
+      message:
+        "patientId, doctorId, dayOfWeek, startTime and endTime are required",
     });
   }
 
-  // Check patient ID
-  if (!mongoose.Types.ObjectId.isValid(patientId)) {
+  // Validate day
+  if (!VALID_DAYS.includes(dayOfWeek)) {
     return res.status(400).json({
-      success: false,
-      message: "Invalid patient ID",
+      message: "Invalid day of week",
     });
   }
 
-  // Check doctor ID
-  if (!mongoose.Types.ObjectId.isValid(doctorId)) {
+  // Validate time format HH:MM
+  const timeRegex =
+    /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+  if (!timeRegex.test(startTime)) {
     return res.status(400).json({
-      success: false,
-      message: "Invalid doctor ID",
+      message:
+        "Invalid startTime format. Use HH:MM",
     });
   }
 
-  // Check date
-  const appointmentDate = new Date(date);
-
-  if (isNaN(appointmentDate.getTime())) {
+  if (!timeRegex.test(endTime)) {
     return res.status(400).json({
-      success: false,
-      message: "Invalid date format",
+      message:
+        "Invalid endTime format. Use HH:MM",
     });
   }
 
-  // Appointment must be in the future
-  if (appointmentDate <= new Date()) {
-    return res.status(400).json({
-      success: false,
-      message: "Appointment date must be in the future",
-    });
-  }
-
-  // Check time order
+  // End time must be after start time
   if (startTime >= endTime) {
     return res.status(400).json({
-      success: false,
-      message: "Start time must be before end time",
+      message:
+        "endTime must be after startTime",
     });
   }
 

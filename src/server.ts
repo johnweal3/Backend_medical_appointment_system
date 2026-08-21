@@ -20,39 +20,68 @@ const PORT = process.env.PORT || 3000;
 
 // Home route
 app.get("/", (req, res) => {
-    res.json({
-        message: "Medical Appointment System API is running"
-    });
+  res.json({
+    message:
+      "Medical Appointment System API is running",
+  });
 });
 
 // Routes
-app.use("/api/appointments", appointmentRoutes);
-app.use("/api/schedules", scheduleRoutes);
-app.use("/api/auth", authRoutes);
-app.use("/api/doctors", doctorRoutes);
+app.use(
+  "/api/appointments",
+  appointmentRoutes
+);
+
+app.use(
+  "/api/schedules",
+  scheduleRoutes
+);
+
+app.use(
+  "/api/auth",
+  authRoutes
+);
+
+app.use(
+  "/api/doctors",
+  doctorRoutes
+);
 
 // Swagger
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec)
+);
 
 // Start server
 const startServer = async () => {
-    try {
-        console.log("Connecting to MongoDB...");
+  try {
+    console.log("Connecting to MongoDB...");
 
-        await connectDB();
+    await connectDB();
 
-        console.log("MongoDB connected");
+    console.log("MongoDB connected");
 
-        app.listen(PORT, () => {
-            console.log(`Server is running on http://localhost:${PORT}`);
-            console.log(`Swagger: http://localhost:${PORT}/api-docs`);
-        });
+    app.listen(PORT, () => {
+      console.log(
+        `Server is running on http://localhost:${PORT}`
+      );
 
-    } catch (error) {
-        console.error("Failed to start server:", error);
-        process.exit(1);
-    }
+      console.log(
+        `Swagger: http://localhost:${PORT}/api-docs`
+      );
+    });
+  } catch (error) {
+    console.error(
+      "Failed to start server:",
+      error
+    );
+
+    process.exit(1);
+  }
 };
 
 startServer();
+
 module.exports = app;

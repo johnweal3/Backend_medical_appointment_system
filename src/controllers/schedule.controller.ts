@@ -68,17 +68,19 @@ export const getScheduleById = async (req: Request, res: Response) => {
 };
 
 // GET DOCTOR SCHEDULES
-export const getDoctorSchedules = async (req: Request, res: Response) => {
+export const getDoctorSchedules = async (
+  req: Request,
+  res: Response
+) => {
   try {
     const doctorId = req.params.doctorId;
-    if (!doctorId) {
+    const schedules = await Schedule.find({ doctorId });
+
+    if (schedules.length === 0) {
       return res.status(404).json({
-        message: "Doctor id is not found",
+        message: "No schedules found for this doctor",
       });
     }
-    const schedules = await Schedule.find({
-      doctorId: doctorId,
-    });
     return res.status(200).json(schedules);
   } catch (error) {
     return res.status(500).json({
@@ -86,7 +88,6 @@ export const getDoctorSchedules = async (req: Request, res: Response) => {
     });
   }
 };
-
 // UPDATE SCHEDULE
 export const updateSchedule = async (req: AuthRequest, res: Response) => {
   try {

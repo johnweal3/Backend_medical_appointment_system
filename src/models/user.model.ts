@@ -30,9 +30,7 @@ const userSchema = new Schema<IUser>(
       default: "patient",
     },
   },
-  {
-    timestamps: true,
-  }
+  
 );
 
 export const User = mongoose.model<IUser>("User", userSchema);

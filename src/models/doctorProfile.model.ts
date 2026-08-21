@@ -63,9 +63,7 @@ const doctorProfileSchema = new Schema<IDoctorProfile>(
             default: true
         }
     },
-    {
-        timestamps: true
-    }
+  
 );
 
 export default mongoose.model<IDoctorProfile>(

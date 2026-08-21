@@ -3,20 +3,27 @@ import mongoose from "mongoose";
 const appointmentSchema = new mongoose.Schema(
   {
     patientId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      type: String,
       required: true,
     },
 
     doctorId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      type: String,
       required: true,
     },
 
-    date: {
+    dayOfWeek: {
       type: String,
       required: true,
+      enum: [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+      ],
     },
 
     startTime: {
@@ -31,7 +38,13 @@ const appointmentSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["Pending", "Confirmed", "Completed", "Cancelled"],
+      required: true,
+      enum: [
+        "Pending",
+        "Confirmed",
+        "Completed",
+        "Cancelled",
+      ],
       default: "Pending",
     },
 
@@ -39,9 +52,6 @@ const appointmentSchema = new mongoose.Schema(
       type: String,
       required: false,
     },
-  },
-  {
-    timestamps: true,
   }
 );
 

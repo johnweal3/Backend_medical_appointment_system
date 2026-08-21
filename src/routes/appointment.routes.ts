@@ -10,7 +10,9 @@ import {
   updateAppointmentStatus,
 } from "../controllers/appointment.controller";
 
-import { validateAppointment } from "../middlewares/appointment.middleware";
+import {
+  validateAppointment,
+} from "../middlewares/appointment.middleware";
 
 const router = express.Router();
 
@@ -23,7 +25,7 @@ const router = express.Router();
  *       required:
  *         - patientId
  *         - doctorId
- *         - date
+ *         - dayOfWeek
  *         - startTime
  *         - endTime
  *       properties:
@@ -33,9 +35,17 @@ const router = express.Router();
  *         doctorId:
  *           type: string
  *           example: 64f123abc456def789012999
- *         date:
+ *         dayOfWeek:
  *           type: string
- *           example: "2026-09-01"
+ *           enum:
+ *             - Sunday
+ *             - Monday
+ *             - Tuesday
+ *             - Wednesday
+ *             - Thursday
+ *             - Friday
+ *             - Saturday
+ *           example: Monday
  *         startTime:
  *           type: string
  *           example: "10:00"
@@ -44,15 +54,20 @@ const router = express.Router();
  *           example: "10:30"
  *         notes:
  *           type: string
- *           example: "First visit, knee pain"
+ *           example: First visit, knee pain
  *         status:
  *           type: string
- *           enum: [Pending, Confirmed, Completed, Cancelled]
+ *           enum:
+ *             - Pending
+ *             - Confirmed
+ *             - Completed
+ *             - Cancelled
+ *           example: Pending
  */
 
 /**
  * @swagger
- * /appointments:
+ * /api/appointments:
  *   post:
  *     summary: Book a new appointment
  *     tags: [Appointment]
@@ -76,18 +91,24 @@ router.post(
   createAppointment
 );
 
+
 /**
  * @swagger
- * /appointments:
+ * /api/appointments:
  *   get:
- *     summary: Get all appointments (optionally filter by status)
+ *     summary: Get all appointments
+ *     description: Get all appointments, optionally filtered by status
  *     tags: [Appointment]
  *     parameters:
  *       - in: query
  *         name: status
  *         schema:
  *           type: string
- *           enum: [Pending, Confirmed, Completed, Cancelled]
+ *           enum:
+ *             - Pending
+ *             - Confirmed
+ *             - Completed
+ *             - Cancelled
  *     responses:
  *       200:
  *         description: Appointments retrieved successfully
@@ -97,9 +118,10 @@ router.get(
   getAppointments
 );
 
+
 /**
  * @swagger
- * /appointments/doctor/{doctorId}:
+ * /api/appointments/doctor/{doctorId}:
  *   get:
  *     summary: Get all appointments for a doctor
  *     tags: [Appointment]
@@ -112,15 +134,18 @@ router.get(
  *     responses:
  *       200:
  *         description: Doctor's appointments retrieved successfully
+ *       400:
+ *         description: Invalid doctor id
  */
 router.get(
   "/doctor/:doctorId",
   getDoctorAppointments
 );
 
+
 /**
  * @swagger
- * /appointments/patient/{patientId}:
+ * /api/appointments/patient/{patientId}:
  *   get:
  *     summary: Get appointment history for a patient
  *     tags: [Appointment]
@@ -133,15 +158,18 @@ router.get(
  *     responses:
  *       200:
  *         description: Patient's appointments retrieved successfully
+ *       400:
+ *         description: Invalid patient id
  */
 router.get(
   "/patient/:patientId",
   getPatientAppointments
 );
 
+
 /**
  * @swagger
- * /appointments/{id}:
+ * /api/appointments/{id}:
  *   get:
  *     summary: Get a single appointment by id
  *     tags: [Appointment]
@@ -154,6 +182,8 @@ router.get(
  *     responses:
  *       200:
  *         description: Appointment retrieved successfully
+ *       400:
+ *         description: Invalid appointment id
  *       404:
  *         description: Appointment not found
  */
@@ -162,9 +192,10 @@ router.get(
   getAppointmentById
 );
 
+
 /**
  * @swagger
- * /appointments/{id}/cancel:
+ * /api/appointments/{id}/cancel:
  *   put:
  *     summary: Cancel an appointment
  *     tags: [Appointment]
@@ -187,11 +218,12 @@ router.put(
   cancelAppointment
 );
 
+
 /**
  * @swagger
- * /appointments/{id}/status:
+ * /api/appointments/{id}/status:
  *   put:
- *     summary: Update an appointment's status (doctor confirms/completes it)
+ *     summary: Update appointment status
  *     tags: [Appointment]
  *     parameters:
  *       - in: path
@@ -205,16 +237,21 @@ router.put(
  *         application/json:
  *           schema:
  *             type: object
- *             required: [status]
+ *             required:
+ *               - status
  *             properties:
  *               status:
  *                 type: string
- *                 enum: [Pending, Confirmed, Completed, Cancelled]
+ *                 enum:
+ *                   - Pending
+ *                   - Confirmed
+ *                   - Completed
+ *                   - Cancelled
  *     responses:
  *       200:
  *         description: Appointment status updated successfully
  *       400:
- *         description: Invalid status or appointment already completed
+ *         description: Invalid status
  *       404:
  *         description: Appointment not found
  */

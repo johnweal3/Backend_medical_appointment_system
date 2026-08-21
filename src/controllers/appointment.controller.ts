@@ -4,7 +4,12 @@ import { Appointment } from "../models/appointment.model";
 import { Schedule } from "../models/schedule.model";
 
 // Statuses that still hold a time slot
-type AppointmentStatus = "Pending" | "Confirmed" | "Completed" | "Cancelled";
+type AppointmentStatus =
+  | "Pending"
+  | "Confirmed"
+  | "Completed"
+  | "Cancelled";
+
 type DayOfWeek =
   | "Sunday"
   | "Monday"
@@ -14,7 +19,11 @@ type DayOfWeek =
   | "Friday"
   | "Saturday";
 
-const ACTIVE_STATUSES: AppointmentStatus[] = ["Pending", "Confirmed"];
+const ACTIVE_STATUSES: AppointmentStatus[] = [
+  "Pending",
+  "Confirmed",
+];
+
 const VALID_STATUSES: AppointmentStatus[] = [
   "Pending",
   "Confirmed",
@@ -31,17 +40,11 @@ export const createAppointment = async (
     const {
       patientId,
       doctorId,
-      date,
+      dayOfWeek,
       startTime,
       endTime,
       notes,
     } = req.body;
-
-    // Get day name from appointment date
-    const dayOfWeek = new Date(date).toLocaleDateString(
-      "en-US",
-      { weekday: "long" }
-    ) as DayOfWeek;
 
     // Check doctor's schedule
     const doctorSchedule = await Schedule.findOne({
@@ -65,38 +68,34 @@ export const createAppointment = async (
       });
     }
 
-    // Check that end time is after start time
-    if (startTime >= endTime) {
-      return res.status(400).json({
-        message: "End time must be after start time",
-      });
-    }
-
-    // Get doctor's active appointments on this date
+    // Get doctor's active appointments on this day
     const doctorAppointments = await Appointment.find({
       doctorId: doctorId,
-      date: date,
+      dayOfWeek: dayOfWeek,
       status: { $in: ACTIVE_STATUSES },
     });
 
     // Check doctor double-booking
-    const doctorOverlap = doctorAppointments.find((appointment) => {
-      return (
-        startTime < appointment.endTime &&
-        endTime > appointment.startTime
-      );
-    });
+    const doctorOverlap = doctorAppointments.find(
+      (appointment) => {
+        return (
+          startTime < appointment.endTime &&
+          endTime > appointment.startTime
+        );
+      }
+    );
 
     if (doctorOverlap) {
       return res.status(409).json({
-        message: "Doctor already has an appointment at this time",
+        message:
+          "Doctor already has an appointment at this time",
       });
     }
 
     // Check patient isn't double-booking themselves
     const patientOverlap = await Appointment.findOne({
       patientId: patientId,
-      date: date,
+      dayOfWeek: dayOfWeek,
       status: { $in: ACTIVE_STATUSES },
       startTime: { $lt: endTime },
       endTime: { $gt: startTime },
@@ -104,7 +103,8 @@ export const createAppointment = async (
 
     if (patientOverlap) {
       return res.status(409).json({
-        message: "You already have an appointment at this time",
+        message:
+          "You already have an appointment at this time",
       });
     }
 
@@ -112,7 +112,7 @@ export const createAppointment = async (
     const newAppointment = await Appointment.create({
       patientId,
       doctorId,
-      date,
+      dayOfWeek,
       startTime,
       endTime,
       notes,
@@ -123,9 +123,11 @@ export const createAppointment = async (
       message: "Appointment booked successfully",
       newAppointment,
     });
-
   } catch (error) {
-    console.error("Create Appointment Error:", error);
+    console.error(
+      "Create Appointment Error:",
+      error
+    );
 
     return res.status(500).json({
       message: "Failed to book appointment",
@@ -140,25 +142,35 @@ export const getAppointments = async (
   res: Response
 ) => {
   try {
-    // Optional filter, e.g. GET /appointments?status=Confirmed
-    const status = typeof req.query.status === "string"
-      ? req.query.status
-      : undefined;
+    const status =
+      typeof req.query.status === "string"
+        ? req.query.status
+        : undefined;
 
-    if (status && !VALID_STATUSES.includes(status as AppointmentStatus)) {
-      return res.status(400).json({ message: "Invalid appointment status" });
+    if (
+      status &&
+      !VALID_STATUSES.includes(
+        status as AppointmentStatus
+      )
+    ) {
+      return res.status(400).json({
+        message: "Invalid appointment status",
+      });
     }
 
     const filter = status
       ? { status: status as AppointmentStatus }
       : {};
 
-    const appointments = await Appointment.find(filter);
+    const appointments =
+      await Appointment.find(filter);
 
     return res.status(200).json(appointments);
-
   } catch (error) {
-    console.error("Get Appointments Error:", error);
+    console.error(
+      "Get Appointments Error:",
+      error
+    );
 
     return res.status(500).json({
       message: "Failed to get appointments",
@@ -175,25 +187,32 @@ export const getAppointmentById = async (
   try {
     const appointmentId = req.params.id;
 
-    if (typeof appointmentId !== "string" || !mongoose.Types.ObjectId.isValid(appointmentId)) {
+    if (
+      typeof appointmentId !== "string" ||
+      !mongoose.Types.ObjectId.isValid(
+        appointmentId
+      )
+    ) {
       return res.status(400).json({
         message: "Invalid appointment id",
       });
     }
 
-    const targetAppointment =
+    const appointment =
       await Appointment.findById(appointmentId);
 
-    if (!targetAppointment) {
+    if (!appointment) {
       return res.status(404).json({
         message: "Appointment not found",
       });
     }
 
-    return res.status(200).json(targetAppointment);
-
+    return res.status(200).json(appointment);
   } catch (error) {
-    console.error("Get Appointment Error:", error);
+    console.error(
+      "Get Appointment Error:",
+      error
+    );
 
     return res.status(500).json({
       message: "Failed to get appointment",
@@ -210,20 +229,26 @@ export const getDoctorAppointments = async (
   try {
     const doctorId = req.params.doctorId;
 
-    if (typeof doctorId !== "string" || !mongoose.Types.ObjectId.isValid(doctorId)) {
+    if (
+      typeof doctorId !== "string" ||
+      !mongoose.Types.ObjectId.isValid(doctorId)
+    ) {
       return res.status(400).json({
         message: "Invalid doctor id",
       });
     }
 
-    const appointments = await Appointment.find({
-      doctorId: doctorId,
-    });
+    const appointments =
+      await Appointment.find({
+        doctorId: doctorId,
+      });
 
     return res.status(200).json(appointments);
-
   } catch (error) {
-    console.error("Get Doctor Appointments Error:", error);
+    console.error(
+      "Get Doctor Appointments Error:",
+      error
+    );
 
     return res.status(500).json({
       message: "Failed to get doctor appointments",
@@ -232,7 +257,7 @@ export const getDoctorAppointments = async (
 };
 
 
-// Get Patient Appointments (appointment history)
+// Get Patient Appointments
 export const getPatientAppointments = async (
   req: Request,
   res: Response
@@ -240,20 +265,26 @@ export const getPatientAppointments = async (
   try {
     const patientId = req.params.patientId;
 
-    if (typeof patientId !== "string" || !mongoose.Types.ObjectId.isValid(patientId)) {
+    if (
+      typeof patientId !== "string" ||
+      !mongoose.Types.ObjectId.isValid(patientId)
+    ) {
       return res.status(400).json({
         message: "Invalid patient id",
       });
     }
 
-    const appointments = await Appointment.find({
-      patientId: patientId,
-    });
+    const appointments =
+      await Appointment.find({
+        patientId: patientId,
+      });
 
     return res.status(200).json(appointments);
-
   } catch (error) {
-    console.error("Get Patient Appointments Error:", error);
+    console.error(
+      "Get Patient Appointments Error:",
+      error
+    );
 
     return res.status(500).json({
       message: "Failed to get patient appointments",
@@ -270,7 +301,12 @@ export const cancelAppointment = async (
   try {
     const appointmentId = req.params.id;
 
-    if (typeof appointmentId !== "string" || !mongoose.Types.ObjectId.isValid(appointmentId)) {
+    if (
+      typeof appointmentId !== "string" ||
+      !mongoose.Types.ObjectId.isValid(
+        appointmentId
+      )
+    ) {
       return res.status(400).json({
         message: "Invalid appointment id",
       });
@@ -285,7 +321,9 @@ export const cancelAppointment = async (
       });
     }
 
-    // TODO: once auth is ready, only the owning patient or an admin can cancel
+    // TODO:
+    // Once authentication is ready,
+    // only the owning patient or admin can cancel.
 
     if (appointment.status === "Cancelled") {
       return res.status(400).json({
@@ -295,18 +333,8 @@ export const cancelAppointment = async (
 
     if (appointment.status === "Completed") {
       return res.status(400).json({
-        message: "Completed appointments cannot be cancelled",
-      });
-    }
-
-    // Can't cancel an appointment that already started
-    const appointmentDateTime = new Date(
-      `${appointment.date}T${appointment.startTime}`
-    );
-
-    if (appointmentDateTime <= new Date()) {
-      return res.status(400).json({
-        message: "Cannot cancel an appointment that has already started",
+        message:
+          "Completed appointments cannot be cancelled",
       });
     }
 
@@ -315,12 +343,15 @@ export const cancelAppointment = async (
     await appointment.save();
 
     return res.status(200).json({
-      message: "Appointment cancelled successfully",
+      message:
+        "Appointment cancelled successfully",
       appointment,
     });
-
   } catch (error) {
-    console.error("Cancel Appointment Error:", error);
+    console.error(
+      "Cancel Appointment Error:",
+      error
+    );
 
     return res.status(500).json({
       message: "Failed to cancel appointment",
@@ -329,7 +360,7 @@ export const cancelAppointment = async (
 };
 
 
-// Update Appointment Status (doctor confirms/completes an appointment)
+// Update Appointment Status
 export const updateAppointmentStatus = async (
   req: Request,
   res: Response
@@ -338,13 +369,22 @@ export const updateAppointmentStatus = async (
     const appointmentId = req.params.id;
     const { status } = req.body;
 
-    if (typeof appointmentId !== "string" || !mongoose.Types.ObjectId.isValid(appointmentId)) {
+    if (
+      typeof appointmentId !== "string" ||
+      !mongoose.Types.ObjectId.isValid(
+        appointmentId
+      )
+    ) {
       return res.status(400).json({
         message: "Invalid appointment id",
       });
     }
 
-    if (!VALID_STATUSES.includes(status)) {
+    if (
+      !VALID_STATUSES.includes(
+        status as AppointmentStatus
+      )
+    ) {
       return res.status(400).json({
         message: "Invalid appointment status",
       });
@@ -359,28 +399,36 @@ export const updateAppointmentStatus = async (
       });
     }
 
-    // TODO: once auth is ready, only the owning doctor or an admin can update
+    // TODO:
+    // Once authentication is ready,
+    // only the owning doctor or admin can update.
 
     if (appointment.status === "Completed") {
       return res.status(400).json({
-        message: "Completed appointments cannot be edited",
+        message:
+          "Completed appointments cannot be edited",
       });
     }
 
-    appointment.status = status as AppointmentStatus;
+    appointment.status =
+      status as AppointmentStatus;
 
     await appointment.save();
 
     return res.status(200).json({
-      message: "Appointment status updated successfully",
+      message:
+        "Appointment status updated successfully",
       appointment,
     });
-
   } catch (error) {
-    console.error("Update Appointment Status Error:", error);
+    console.error(
+      "Update Appointment Status Error:",
+      error
+    );
 
     return res.status(500).json({
-      message: "Failed to update appointment status",
+      message:
+        "Failed to update appointment status",
     });
   }
 };
