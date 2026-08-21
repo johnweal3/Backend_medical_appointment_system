@@ -1,6 +1,7 @@
 
 import { Request, Response } from "express";
 import {Schedule} from "../models/schedule.model";
+import { Appointment } from "../models/appointment.model";
 
 // CREATE SCHEDULE
 export const createSchedule = async (req: Request, res: Response) => {
@@ -96,7 +97,7 @@ export const updateSchedule = async (req: Request, res: Response) => {
         message: "Schedule not found",
       });
     }
-    if (targetSchedule.doctorId !== req.user.id) {
+    if (schedule.doctorId !== req.user!.id) {
       return res.status(403).json({
         message: "You can only manage your own schedule",
       });
@@ -129,14 +130,22 @@ export const deleteSchedule = async (req: Request, res: Response) => {
         message: "Id is required",
       });
     }
-    if (targetSchedule.doctorId !== req.user.id) {
+    const targetSchedule = await Schedule.findById(scheduleId);
+
+    if (!targetSchedule) {
+      return res.status(404).json({
+        message: "Schedule not found",
+      });
+    }
+
+    if (targetSchedule.doctorId !== req.user!.id) {
       return res.status(403).json({
         message: "You can only manage your own schedule",
       });
     }
     const futureAppointment = await Appointment.findOne({
       doctorId: targetSchedule.doctorId,
-      status: "confirmed",
+      status: "Confirmed",
     });
     if (futureAppointment) {
       return res.status(409).json({

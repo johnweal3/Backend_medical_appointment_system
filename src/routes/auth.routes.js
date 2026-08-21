@@ -1,10 +1,8 @@
-import { Router } from "express";
-import { register, login } from "../controllers/auth.controller";
-
-const router = Router();
-
-
-
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_controller_1 = require("../controllers/auth.controller");
+const router = (0, express_1.Router)();
 /**
  * @openapi
  * /api/auth/register:
@@ -37,8 +35,7 @@ const router = Router();
  *       400:
  *         description: Validation error or email already exists
  */
-router.post("/register", register);
-
+router.post("/register", auth_controller_1.register);
 /**
  * @openapi
  * /api/auth/login:
@@ -65,6 +62,6 @@ router.post("/register", register);
  *       400:
  *         description: Invalid email or password
  */
-router.post("/login", login);
-
-export default router;
+router.post("/login", auth_controller_1.login);
+exports.default = router;
+//# sourceMappingURL=auth.routes.js.map

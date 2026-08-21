@@ -4,7 +4,7 @@ import { Appointment } from "../models/appointment.model";
 import { Schedule } from "../models/schedule.model";
 
 // Statuses that still hold a time slot
-const ACTIVE_STATUSES = ["Pending", "Confirmed"];
+const ACTIVE_STATUSES = ["Pending", "Confirmed"] as const;
 
 // Create Appointment
 export const createAppointment = async (
@@ -25,7 +25,14 @@ export const createAppointment = async (
     const dayOfWeek = new Date(date).toLocaleDateString(
       "en-US",
       { weekday: "long" }
-    );
+    ) as
+      | "Sunday"
+      | "Monday"
+      | "Tuesday"
+      | "Wednesday"
+      | "Thursday"
+      | "Friday"
+      | "Saturday";
 
     // Check doctor's schedule
     const doctorSchedule = await Schedule.findOne({
@@ -126,7 +133,16 @@ export const getAppointments = async (
   try {
     // Optional filter, e.g. GET /appointments?status=Confirmed
     const { status } = req.query;
-    const filter = status ? { status } : {};
+    const filter =
+      typeof status === "string"
+        ? {
+            status: status as
+              | "Pending"
+              | "Confirmed"
+              | "Completed"
+              | "Cancelled",
+          }
+        : {};
 
     const appointments = await Appointment.find(filter);
 
@@ -150,7 +166,7 @@ export const getAppointmentById = async (
   try {
     const appointmentId = req.params.id;
 
-    if (!mongoose.Types.ObjectId.isValid(appointmentId)) {
+    if (typeof appointmentId !== "string" || !mongoose.Types.ObjectId.isValid(appointmentId)) {
       return res.status(400).json({
         message: "Invalid appointment id",
       });
@@ -185,7 +201,7 @@ export const getDoctorAppointments = async (
   try {
     const doctorId = req.params.doctorId;
 
-    if (!mongoose.Types.ObjectId.isValid(doctorId)) {
+    if (typeof doctorId !== "string" || !mongoose.Types.ObjectId.isValid(doctorId)) {
       return res.status(400).json({
         message: "Invalid doctor id",
       });
@@ -215,7 +231,7 @@ export const getPatientAppointments = async (
   try {
     const patientId = req.params.patientId;
 
-    if (!mongoose.Types.ObjectId.isValid(patientId)) {
+    if (typeof patientId !== "string" || !mongoose.Types.ObjectId.isValid(patientId)) {
       return res.status(400).json({
         message: "Invalid patient id",
       });
@@ -245,7 +261,7 @@ export const cancelAppointment = async (
   try {
     const appointmentId = req.params.id;
 
-    if (!mongoose.Types.ObjectId.isValid(appointmentId)) {
+    if (typeof appointmentId !== "string" || !mongoose.Types.ObjectId.isValid(appointmentId)) {
       return res.status(400).json({
         message: "Invalid appointment id",
       });
@@ -313,7 +329,7 @@ export const updateAppointmentStatus = async (
     const appointmentId = req.params.id;
     const { status } = req.body;
 
-    if (!mongoose.Types.ObjectId.isValid(appointmentId)) {
+    if (typeof appointmentId !== "string" || !mongoose.Types.ObjectId.isValid(appointmentId)) {
       return res.status(400).json({
         message: "Invalid appointment id",
       });

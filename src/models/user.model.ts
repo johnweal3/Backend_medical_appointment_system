@@ -6,6 +6,17 @@ export interface IUser extends Document {
   role: "patient" | "doctor" | "admin";
 }
 
+declare global {
+    namespace Express {
+        interface Request {
+            user?: {
+                id: string;
+                role: string;
+            };
+        }
+    }
+}
+
 const userSchema = new Schema<IUser>(
   {
     fullName: {
