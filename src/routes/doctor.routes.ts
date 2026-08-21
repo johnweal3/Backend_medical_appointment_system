@@ -103,9 +103,26 @@ const router = Router();
  * /doctors:
  *   get:
  *     summary: Get all doctors
- *     description: Returns all doctor profiles.
+ *     description: Returns all doctor profiles with optional search and filtering.
  *     tags:
  *       - Doctor
+ *     parameters:
+ *       - in: query
+ *         name: name
+ *         required: false
+ *         description: Search doctors by name
+ *         schema:
+ *           type: string
+ *         example: Ahmed
+ *
+ *       - in: query
+ *         name: specialty
+ *         required: false
+ *         description: Filter doctors by specialty
+ *         schema:
+ *           type: string
+ *         example: Cardiology
+ *
  *     responses:
  *       200:
  *         description: Doctors retrieved successfully

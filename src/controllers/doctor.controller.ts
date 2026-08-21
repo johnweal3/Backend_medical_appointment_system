@@ -1,5 +1,6 @@
 import { Response } from "express";
 import DoctorProfile from "../models/doctorProfile.model";
+import User from "../models/user.model"; // waiting for this file to complete
 import { AuthRequest } from "../middlewares/auth.middleware"; // waiting for this file to complete
 
 // GET /doctors/:doctorId
@@ -35,10 +36,49 @@ export const getAllDoctors = async (
     res: Response
 ): Promise<void> => {
     try {
-        const doctors = await DoctorProfile.find()
+        const { name, specialty } = req.query;
+
+        let doctorIds;
+
+        // Search by doctor name
+        if (name) {
+            const users = await User.find({
+                fullName: {
+                    $regex: name as string,
+                    $options: "i"
+                },
+                role: "Doctor"
+            }).select("_id");
+
+            doctorIds = users.map((user) => user._id); // waiting for user model
+
+            // No doctors found with this name
+            if (doctorIds.length === 0) {
+                res.status(200).json([]);
+                return;
+            }
+        }
+
+        // Build DoctorProfile filter
+        const filter: any = {};
+
+        if (doctorIds) {
+            filter.doctor = { $in: doctorIds };
+        }
+
+        // Filter by specialty
+        if (specialty) {
+            filter.specialty = {
+                $regex: specialty as string,
+                $options: "i"
+            };
+        }
+
+        const doctors = await DoctorProfile.find(filter)
             .populate("doctor", "fullName email role");
 
         res.status(200).json(doctors);
+
     } catch (error) {
         console.error(error);
 
