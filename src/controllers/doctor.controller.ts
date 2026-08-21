@@ -1,7 +1,7 @@
 import { Response } from "express";
 import DoctorProfile from "../models/doctorProfile.model";
-import User from "../models/user.model"; // waiting for this file to complete
-import { AuthRequest } from "../middlewares/auth.middleware"; // waiting for this file to complete
+import { User } from "../models/user.model";
+import { AuthRequest } from "../middlewares/auth.middleware";
 
 // GET /doctors/:doctorId
 export const getDoctorProfileById = async (
@@ -9,8 +9,15 @@ export const getDoctorProfileById = async (
     res: Response
 ): Promise<void> => {
     try {
+        const doctorId = req.params.doctorId;
+
+        if (typeof doctorId !== "string") {
+            res.status(400).json({ message: "Invalid doctor id" });
+            return;
+        }
+
         const profile = await DoctorProfile.findOne({
-            doctor: req.params.doctorId
+            doctor: doctorId
         }).populate("doctor", "fullName email role");
 
         if (!profile) {
@@ -47,7 +54,7 @@ export const getAllDoctors = async (
                     $regex: name as string,
                     $options: "i"
                 },
-                role: "Doctor"
+                role: "doctor"
             }).select("_id");
 
             doctorIds = users.map((user) => user._id); // waiting for user model

@@ -1,7 +1,8 @@
 import express from "express";
 import {createSchedule,getSchedules,getScheduleById,getDoctorSchedules,updateSchedule,deleteSchedule,
 } from "../controllers/schedule.controller";
-import { validateSchedule } from "../middlewares/schedule.validator";
+import { validateSchedule } from "../middlewares/schedule.middleware";
+import { authorize, protect } from "../middlewares/auth.middleware";
 
 /**
  * @swagger
@@ -200,7 +201,7 @@ router.get("/:id", getScheduleById);
  *       500:
  *         description: Failed to update the schedule
  */
-router.put("/:id", validateSchedule, updateSchedule);
+router.put("/:id", protect, authorize("doctor", "admin"), validateSchedule, updateSchedule);
 
 /**
  * @swagger
@@ -230,7 +231,7 @@ router.put("/:id", validateSchedule, updateSchedule);
  *       500:
  *         description: Failed to delete schedule
  */
-router.delete("/:id", deleteSchedule);
+router.delete("/:id", protect, authorize("doctor", "admin"), deleteSchedule);
 
 
 export default router;

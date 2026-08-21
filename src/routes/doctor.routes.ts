@@ -12,7 +12,8 @@ import {
 import {
     validateDoctorProfileUpdate,
     validateDoctorProfile
-} from "../middlewares/doctor.validator";
+} from "../middlewares/doctor.middleware";
+import { authorize, protect } from "../middlewares/auth.middleware";
 
 const router = Router();
 
@@ -152,6 +153,8 @@ router.get(
  */
 router.get(
     "/me",
+    protect,
+    authorize("doctor"),
     getDoctorProfile
 );
 
@@ -181,6 +184,8 @@ router.get(
  */
 router.post(
     "/me",
+    protect,
+    authorize("doctor"),
     validateDoctorProfile,
     createDoctorProfile
 );
@@ -211,6 +216,8 @@ router.post(
  */
 router.patch(
     "/me",
+    protect,
+    authorize("doctor"),
     validateDoctorProfileUpdate,
     updateDoctorProfile
 );
@@ -233,6 +240,8 @@ router.patch(
  */
 router.delete(
     "/me",
+    protect,
+    authorize("doctor"),
     deleteDoctorProfile
 );
 
