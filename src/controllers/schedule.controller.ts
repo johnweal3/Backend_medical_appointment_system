@@ -1,4 +1,3 @@
-
 import { Request, Response } from "express";
 import {Schedule} from "../models/schedule.model";
 import { Appointment } from "../models/appointment.model";
@@ -73,7 +72,7 @@ export const getDoctorSchedules = async (
   res: Response
 ) => {
   try {
-    const doctorId = req.params.doctorId;
+    const doctorId = req.params.doctorId as string;
     const schedules = await Schedule.find({ doctorId });
 
     if (schedules.length === 0) {
@@ -99,12 +98,11 @@ export const updateSchedule = async (req: AuthRequest, res: Response) => {
         message: "Schedule not found",
       });
     }
-    if (schedule.doctorId.toString() !== req.user?.id) {
+    if (schedule.doctorId.toString() !== req.user?.id && req.user?.role !== "admin") {
       return res.status(403).json({
         message: "You can only manage your own schedule",
       });
     }
-    schedule.doctorId = doctorId;
     schedule.dayOfWeek = dayOfWeek;
     schedule.startTime = startTime;
     schedule.endTime = endTime;
@@ -140,13 +138,14 @@ export const deleteSchedule = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    if (targetSchedule.doctorId.toString() !== req.user?.id) {
+    if (targetSchedule.doctorId.toString() !== req.user?.id && req.user?.role !== "admin") {
       return res.status(403).json({
         message: "You can only manage your own schedule",
       });
     }
     const futureAppointment = await Appointment.findOne({
       doctorId: targetSchedule.doctorId,
+      dayOfWeek: targetSchedule.dayOfWeek,
       status: "Confirmed",
     });
     if (futureAppointment) {
