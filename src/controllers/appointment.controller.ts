@@ -1,28 +1,13 @@
-import { Request, Response } from "express";
+import { Response } from "express";
 import mongoose from "mongoose";
 import { Appointment } from "../models/appointment.model";
 import { Schedule } from "../models/schedule.model";
+import { AuthRequest } from "../middlewares/auth.middleware";
 
 // Statuses that still hold a time slot
-type AppointmentStatus =
-  | "Pending"
-  | "Confirmed"
-  | "Completed"
-  | "Cancelled";
+type AppointmentStatus = "Pending" | "Confirmed" | "Completed" | "Cancelled";
 
-type DayOfWeek =
-  | "Sunday"
-  | "Monday"
-  | "Tuesday"
-  | "Wednesday"
-  | "Thursday"
-  | "Friday"
-  | "Saturday";
-
-const ACTIVE_STATUSES: AppointmentStatus[] = [
-  "Pending",
-  "Confirmed",
-];
+const ACTIVE_STATUSES: AppointmentStatus[] = ["Pending", "Confirmed"];
 
 const VALID_STATUSES: AppointmentStatus[] = [
   "Pending",
@@ -32,19 +17,19 @@ const VALID_STATUSES: AppointmentStatus[] = [
 ];
 
 // Create Appointment
-export const createAppointment = async (
-  req: Request,
-  res: Response
-) => {
+// patientId always comes from the logged-in patient's token, never from the
+// request body — otherwise anyone could book an appointment "as" someone else.
+export const createAppointment = async (req: AuthRequest, res: Response) => {
   try {
-    const {
-      patientId,
-      doctorId,
-      dayOfWeek,
-      startTime,
-      endTime,
-      notes,
-    } = req.body;
+    const patientId = req.user?.id;
+
+    if (!patientId) {
+      return res.status(401).json({
+        message: "Unauthorized",
+      });
+    }
+
+    const { doctorId, dayOfWeek, startTime, endTime, notes } = req.body;
 
     // Check doctor's schedule
     const doctorSchedule = await Schedule.findOne({
@@ -76,19 +61,13 @@ export const createAppointment = async (
     });
 
     // Check doctor double-booking
-    const doctorOverlap = doctorAppointments.find(
-      (appointment) => {
-        return (
-          startTime < appointment.endTime &&
-          endTime > appointment.startTime
-        );
-      }
-    );
+    const doctorOverlap = doctorAppointments.find((appointment) => {
+      return startTime < appointment.endTime && endTime > appointment.startTime;
+    });
 
     if (doctorOverlap) {
       return res.status(409).json({
-        message:
-          "Doctor already has an appointment at this time",
+        message: "Doctor already has an appointment at this time",
       });
     }
 
@@ -103,8 +82,7 @@ export const createAppointment = async (
 
     if (patientOverlap) {
       return res.status(409).json({
-        message:
-          "You already have an appointment at this time",
+        message: "You already have an appointment at this time",
       });
     }
 
@@ -124,10 +102,7 @@ export const createAppointment = async (
       newAppointment,
     });
   } catch (error) {
-    console.error(
-      "Create Appointment Error:",
-      error
-    );
+    console.error("Create Appointment Error:", error);
 
     return res.status(500).json({
       message: "Failed to book appointment",
@@ -135,42 +110,27 @@ export const createAppointment = async (
   }
 };
 
-
-// Get All Appointments
-export const getAppointments = async (
-  req: Request,
-  res: Response
-) => {
+// Get All Appointments — admin only, since admins are the ones who oversee
+// every appointment in the system. Patients/doctors use the endpoints below
+// that are scoped to their own appointments.
+export const getAppointments = async (req: AuthRequest, res: Response) => {
   try {
     const status =
-      typeof req.query.status === "string"
-        ? req.query.status
-        : undefined;
+      typeof req.query.status === "string" ? req.query.status : undefined;
 
-    if (
-      status &&
-      !VALID_STATUSES.includes(
-        status as AppointmentStatus
-      )
-    ) {
+    if (status && !VALID_STATUSES.includes(status as AppointmentStatus)) {
       return res.status(400).json({
         message: "Invalid appointment status",
       });
     }
 
-    const filter = status
-      ? { status: status as AppointmentStatus }
-      : {};
+    const filter = status ? { status: status as AppointmentStatus } : {};
 
-    const appointments =
-      await Appointment.find(filter);
+    const appointments = await Appointment.find(filter);
 
     return res.status(200).json(appointments);
   } catch (error) {
-    console.error(
-      "Get Appointments Error:",
-      error
-    );
+    console.error("Get Appointments Error:", error);
 
     return res.status(500).json({
       message: "Failed to get appointments",
@@ -178,28 +138,21 @@ export const getAppointments = async (
   }
 };
 
-
-// Get Appointment By ID
-export const getAppointmentById = async (
-  req: Request,
-  res: Response
-) => {
+// Get Appointment By ID — only the owning patient, the owning doctor, or admin
+export const getAppointmentById = async (req: AuthRequest, res: Response) => {
   try {
     const appointmentId = req.params.id;
 
     if (
       typeof appointmentId !== "string" ||
-      !mongoose.Types.ObjectId.isValid(
-        appointmentId
-      )
+      !mongoose.Types.ObjectId.isValid(appointmentId)
     ) {
       return res.status(400).json({
         message: "Invalid appointment id",
       });
     }
 
-    const appointment =
-      await Appointment.findById(appointmentId);
+    const appointment = await Appointment.findById(appointmentId);
 
     if (!appointment) {
       return res.status(404).json({
@@ -207,12 +160,20 @@ export const getAppointmentById = async (
       });
     }
 
+    const user = req.user!;
+    const isOwner =
+      appointment.patientId.toString() === user.id ||
+      appointment.doctorId.toString() === user.id;
+
+    if (user.role !== "admin" && !isOwner) {
+      return res.status(403).json({
+        message: "Forbidden: this is not your appointment",
+      });
+    }
+
     return res.status(200).json(appointment);
   } catch (error) {
-    console.error(
-      "Get Appointment Error:",
-      error
-    );
+    console.error("Get Appointment Error:", error);
 
     return res.status(500).json({
       message: "Failed to get appointment",
@@ -220,35 +181,31 @@ export const getAppointmentById = async (
   }
 };
 
-
-// Get Doctor Appointments
-export const getDoctorAppointments = async (
-  req: Request,
-  res: Response
-) => {
+// Get Doctor Appointments — only that doctor themself, or admin
+export const getDoctorAppointments = async (req: AuthRequest, res: Response) => {
   try {
     const doctorId = req.params.doctorId;
 
-    if (
-      typeof doctorId !== "string" ||
-      !mongoose.Types.ObjectId.isValid(doctorId)
-    ) {
+    if (!doctorId) {
       return res.status(400).json({
-        message: "Invalid doctor id",
+        message: "Doctor id is required",
       });
     }
 
-    const appointments =
-      await Appointment.find({
-        doctorId: doctorId,
+    const user = req.user!;
+    if (user.role !== "admin" && user.id !== doctorId) {
+      return res.status(403).json({
+        message: "Forbidden: you can only view your own appointments",
       });
+    }
+
+    const appointments = await Appointment.find({
+      doctorId: doctorId,
+    });
 
     return res.status(200).json(appointments);
   } catch (error) {
-    console.error(
-      "Get Doctor Appointments Error:",
-      error
-    );
+    console.error("Get Doctor Appointments Error:", error);
 
     return res.status(500).json({
       message: "Failed to get doctor appointments",
@@ -256,35 +213,31 @@ export const getDoctorAppointments = async (
   }
 };
 
-
-// Get Patient Appointments
-export const getPatientAppointments = async (
-  req: Request,
-  res: Response
-) => {
+// Get Patient Appointments — only that patient themself, or admin
+export const getPatientAppointments = async (req: AuthRequest, res: Response) => {
   try {
     const patientId = req.params.patientId;
 
-    if (
-      typeof patientId !== "string" ||
-      !mongoose.Types.ObjectId.isValid(patientId)
-    ) {
+    if (!patientId) {
       return res.status(400).json({
-        message: "Invalid patient id",
+        message: "Patient id is required",
       });
     }
 
-    const appointments =
-      await Appointment.find({
-        patientId: patientId,
+    const user = req.user!;
+    if (user.role !== "admin" && user.id !== patientId) {
+      return res.status(403).json({
+        message: "Forbidden: you can only view your own appointments",
       });
+    }
+
+    const appointments = await Appointment.find({
+      patientId: patientId,
+    });
 
     return res.status(200).json(appointments);
   } catch (error) {
-    console.error(
-      "Get Patient Appointments Error:",
-      error
-    );
+    console.error("Get Patient Appointments Error:", error);
 
     return res.status(500).json({
       message: "Failed to get patient appointments",
@@ -292,28 +245,21 @@ export const getPatientAppointments = async (
   }
 };
 
-
-// Cancel Appointment
-export const cancelAppointment = async (
-  req: Request,
-  res: Response
-) => {
+// Cancel Appointment — only the owning patient, or admin
+export const cancelAppointment = async (req: AuthRequest, res: Response) => {
   try {
     const appointmentId = req.params.id;
 
     if (
       typeof appointmentId !== "string" ||
-      !mongoose.Types.ObjectId.isValid(
-        appointmentId
-      )
+      !mongoose.Types.ObjectId.isValid(appointmentId)
     ) {
       return res.status(400).json({
         message: "Invalid appointment id",
       });
     }
 
-    const appointment =
-      await Appointment.findById(appointmentId);
+    const appointment = await Appointment.findById(appointmentId);
 
     if (!appointment) {
       return res.status(404).json({
@@ -321,9 +267,12 @@ export const cancelAppointment = async (
       });
     }
 
-    // TODO:
-    // Once authentication is ready,
-    // only the owning patient or admin can cancel.
+    const user = req.user!;
+    if (user.role !== "admin" && appointment.patientId.toString() !== user.id) {
+      return res.status(403).json({
+        message: "Forbidden: this is not your appointment",
+      });
+    }
 
     if (appointment.status === "Cancelled") {
       return res.status(400).json({
@@ -333,8 +282,7 @@ export const cancelAppointment = async (
 
     if (appointment.status === "Completed") {
       return res.status(400).json({
-        message:
-          "Completed appointments cannot be cancelled",
+        message: "Completed appointments cannot be cancelled",
       });
     }
 
@@ -343,15 +291,11 @@ export const cancelAppointment = async (
     await appointment.save();
 
     return res.status(200).json({
-      message:
-        "Appointment cancelled successfully",
+      message: "Appointment cancelled successfully",
       appointment,
     });
   } catch (error) {
-    console.error(
-      "Cancel Appointment Error:",
-      error
-    );
+    console.error("Cancel Appointment Error:", error);
 
     return res.status(500).json({
       message: "Failed to cancel appointment",
@@ -359,39 +303,28 @@ export const cancelAppointment = async (
   }
 };
 
-
-// Update Appointment Status
-export const updateAppointmentStatus = async (
-  req: Request,
-  res: Response
-) => {
+// Update Appointment Status — only the owning doctor, or admin
+export const updateAppointmentStatus = async (req: AuthRequest, res: Response) => {
   try {
     const appointmentId = req.params.id;
     const { status } = req.body;
 
     if (
       typeof appointmentId !== "string" ||
-      !mongoose.Types.ObjectId.isValid(
-        appointmentId
-      )
+      !mongoose.Types.ObjectId.isValid(appointmentId)
     ) {
       return res.status(400).json({
         message: "Invalid appointment id",
       });
     }
 
-    if (
-      !VALID_STATUSES.includes(
-        status as AppointmentStatus
-      )
-    ) {
+    if (!VALID_STATUSES.includes(status as AppointmentStatus)) {
       return res.status(400).json({
         message: "Invalid appointment status",
       });
     }
 
-    const appointment =
-      await Appointment.findById(appointmentId);
+    const appointment = await Appointment.findById(appointmentId);
 
     if (!appointment) {
       return res.status(404).json({
@@ -399,36 +332,32 @@ export const updateAppointmentStatus = async (
       });
     }
 
-    // TODO:
-    // Once authentication is ready,
-    // only the owning doctor or admin can update.
-
-    if (appointment.status === "Completed") {
-      return res.status(400).json({
-        message:
-          "Completed appointments cannot be edited",
+    const user = req.user!;
+    if (user.role !== "admin" && appointment.doctorId.toString() !== user.id) {
+      return res.status(403).json({
+        message: "Forbidden: this is not your appointment",
       });
     }
 
-    appointment.status =
-      status as AppointmentStatus;
+    if (appointment.status === "Completed") {
+      return res.status(400).json({
+        message: "Completed appointments cannot be edited",
+      });
+    }
+
+    appointment.status = status as AppointmentStatus;
 
     await appointment.save();
 
     return res.status(200).json({
-      message:
-        "Appointment status updated successfully",
+      message: "Appointment status updated successfully",
       appointment,
     });
   } catch (error) {
-    console.error(
-      "Update Appointment Status Error:",
-      error
-    );
+    console.error("Update Appointment Status Error:", error);
 
     return res.status(500).json({
-      message:
-        "Failed to update appointment status",
+      message: "Failed to update appointment status",
     });
   }
 };

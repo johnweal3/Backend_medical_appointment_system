@@ -12,7 +12,7 @@ import {
 import {
     validateDoctorProfileUpdate,
     validateDoctorProfile
-} from "../middlewares/doctor.middleware";
+} from "../middlewares/doctor.validator";
 import { authorize, protect } from "../middlewares/auth.middleware";
 
 const router = Router();
@@ -107,6 +107,7 @@ const router = Router();
  *     description: Returns all doctor profiles with optional search and filtering.
  *     tags:
  *       - Doctor
+ *     security: []
  *     parameters:
  *       - in: query
  *         name: name
@@ -253,6 +254,7 @@ router.delete(
  *     description: Returns the profile of a specific doctor.
  *     tags:
  *       - Doctor
+ *     security: []
  *     parameters:
  *       - in: path
  *         name: doctorId

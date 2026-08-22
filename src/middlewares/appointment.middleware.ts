@@ -1,8 +1,5 @@
-import {
-  Request,
-  Response,
-  NextFunction,
-} from "express";
+import { Request, Response, NextFunction } from "express";
+import mongoose from "mongoose";
 
 const VALID_DAYS = [
   "Sunday",
@@ -14,30 +11,26 @@ const VALID_DAYS = [
   "Saturday",
 ];
 
+// Note: patientId is NOT validated here — it always comes from the logged-in
+// patient's token (see auth.middleware + appointment.controller), never from
+// the request body, so a patient can never book on someone else's behalf.
 export const validateAppointment = (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const {
-    patientId,
-    doctorId,
-    dayOfWeek,
-    startTime,
-    endTime,
-  } = req.body;
+  const { doctorId, dayOfWeek, startTime, endTime } = req.body;
 
   // Required fields
-  if (
-    !patientId ||
-    !doctorId ||
-    !dayOfWeek ||
-    !startTime ||
-    !endTime
-  ) {
+  if (!doctorId || !dayOfWeek || !startTime || !endTime) {
     return res.status(400).json({
-      message:
-        "patientId, doctorId, dayOfWeek, startTime and endTime are required",
+      message: "doctorId, dayOfWeek, startTime and endTime are required",
+    });
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(doctorId)) {
+    return res.status(400).json({
+      message: "Invalid doctor ID",
     });
   }
 
@@ -49,28 +42,24 @@ export const validateAppointment = (
   }
 
   // Validate time format HH:MM
-  const timeRegex =
-    /^([01]\d|2[0-3]):([0-5]\d)$/;
+  const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
   if (!timeRegex.test(startTime)) {
     return res.status(400).json({
-      message:
-        "Invalid startTime format. Use HH:MM",
+      message: "Invalid startTime format. Use HH:MM",
     });
   }
 
   if (!timeRegex.test(endTime)) {
     return res.status(400).json({
-      message:
-        "Invalid endTime format. Use HH:MM",
+      message: "Invalid endTime format. Use HH:MM",
     });
   }
 
   // End time must be after start time
   if (startTime >= endTime) {
     return res.status(400).json({
-      message:
-        "endTime must be after startTime",
+      message: "endTime must be after startTime",
     });
   }
 

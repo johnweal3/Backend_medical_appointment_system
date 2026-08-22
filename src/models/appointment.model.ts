@@ -3,12 +3,14 @@ import mongoose from "mongoose";
 const appointmentSchema = new mongoose.Schema(
   {
     patientId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: true,
     },
 
     doctorId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: true,
     },
 
@@ -39,12 +41,7 @@ const appointmentSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: [
-        "Pending",
-        "Confirmed",
-        "Completed",
-        "Cancelled",
-      ],
+      enum: ["Pending", "Confirmed", "Completed", "Cancelled"],
       default: "Pending",
     },
 
@@ -52,10 +49,10 @@ const appointmentSchema = new mongoose.Schema(
       type: String,
       required: false,
     },
+  },
+  {
+    timestamps: true,
   }
 );
 
-export const Appointment = mongoose.model(
-  "Appointment",
-  appointmentSchema
-);
+export const Appointment = mongoose.model("Appointment", appointmentSchema);

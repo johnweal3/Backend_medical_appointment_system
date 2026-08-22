@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import {Schedule} from "../models/schedule.model";
 import { Appointment } from "../models/appointment.model";
 import { AuthRequest } from "../middlewares/auth.middleware";
+import { protect } from "../middlewares/auth.middleware";
 
 // CREATE SCHEDULE
 export const createSchedule = async (req: Request, res: Response) => {

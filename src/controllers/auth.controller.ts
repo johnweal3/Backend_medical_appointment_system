@@ -1,11 +1,19 @@
 import bcrypt from "bcrypt";
 import type { Request, Response } from "express";
-import { User } from "../models/user.model";
 import jwt from "jsonwebtoken";
+import { User } from "../models/user.model";
 
-export const register = async (req: Request, res: Response): Promise<void> => {
+export const register = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
-    const { fullName, email, password, role = "patient" } = req.body;
+    const {
+      fullName,
+      email,
+      password,
+      role = "patient",
+    } = req.body;
 
     if (
       typeof fullName !== "string" ||
@@ -19,14 +27,18 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     }
 
     if (!["patient", "doctor", "admin"].includes(role)) {
-      res.status(400).json({ message: "Invalid user role" });
+      res.status(400).json({
+        message: "Invalid user role",
+      });
       return;
     }
 
     const existingUser = await User.findOne({ email });
 
     if (existingUser) {
-      res.status(400).json({ message: "Email already exists" });
+      res.status(400).json({
+        message: "Email already exists",
+      });
       return;
     }
 
@@ -49,36 +61,68 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error during registration", error });
+    res.status(500).json({
+      message: "Server error during registration",
+    });
   }
 };
 
-export const login = async (req: Request, res: Response): Promise<void> => {
+export const login = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { email, password } = req.body;
 
-    if (typeof email !== "string" || typeof password !== "string") {
-      res.status(400).json({ message: "Email and password are required" });
+    if (
+      typeof email !== "string" ||
+      typeof password !== "string"
+    ) {
+      res.status(400).json({
+        message: "Email and password are required",
+      });
       return;
     }
 
     const user = await User.findOne({ email });
+
     if (!user || !user.password) {
-      res.status(400).json({ message: "Invalid email or password" });
+      res.status(400).json({
+        message: "Invalid email or password",
+      });
       return;
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(
+      password,
+      user.password
+    );
+
     if (!isMatch) {
-      res.status(400).json({ message: "Invalid email or password" });
+      res.status(400).json({
+        message: "Invalid email or password",
+      });
       return;
     }
 
     const token = jwt.sign(
-      { id: user._id, role: user.role },
+      {
+        id: user._id,
+        role: user.role,
+      },
       process.env.JWT_SECRET || "fallback_secret_key",
-      { expiresIn: "1d" }
+      {
+        expiresIn: "1d",
+      }
     );
+
+    // حفظ الـ token تلقائيًا في Cookie
+    res.cookie("token", token, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: false,
+      maxAge: 24 * 60 * 60 * 1000,
+    });
 
     res.status(200).json({
       message: "Login successful",
@@ -91,6 +135,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error during login", error });
+    res.status(500).json({
+      message: "Server error during login",
+    });
   }
 };

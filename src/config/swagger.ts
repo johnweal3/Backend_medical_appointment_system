@@ -15,6 +15,24 @@ const options = {
         url: "http://localhost:3000",
       },
     ],
+
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+          description:
+            "Paste the token you got back from /api/auth/login here (without the word 'Bearer').",
+        },
+      },
+    },
+
+    security: [
+      {
+        bearerAuth: [],
+      },
+    ],
   },
 
   apis: ["./src/routes/*.ts"],

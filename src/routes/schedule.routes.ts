@@ -1,7 +1,7 @@
 import express from "express";
 import {createSchedule,getSchedules,getScheduleById,getDoctorSchedules,updateSchedule,deleteSchedule,
 } from "../controllers/schedule.controller";
-import { validateSchedule } from "../middlewares/schedule.middleware";
+import { validateSchedule } from "../middlewares/schedule.validator";
 import { authorize, protect } from "../middlewares/auth.middleware";
 
 /**
@@ -10,15 +10,10 @@ import { authorize, protect } from "../middlewares/auth.middleware";
  *   schemas:
  *     Schedule:
  *       type: object
- *       required:
- *         - doctorId
- *         - dayOfWeek
- *         - startTime
- *         - endTime
  *       properties:
  *         doctorId:
  *           type: string
- *           description: ID of the doctor
+ *           description: ID of the doctor (always taken from the logged-in doctor's token, never from the request body)
  *         dayOfWeek:
  *           type: string
  *           enum:
@@ -44,13 +39,36 @@ import { authorize, protect } from "../middlewares/auth.middleware";
  *           type: boolean
  *           description: Indicates whether the schedule is available
  *           default: true
+ *
+ *     NewSchedule:
+ *       type: object
+ *       required:
+ *         - dayOfWeek
+ *         - startTime
+ *         - endTime
+ *       properties:
+ *         dayOfWeek:
+ *           type: string
+ *           enum:
+ *             - Sunday
+ *             - Monday
+ *             - Tuesday
+ *             - Wednesday
+ *             - Thursday
+ *             - Friday
+ *             - Saturday
+ *         startTime:
+ *           type: string
+ *         endTime:
+ *           type: string
+ *         slotDuration:
+ *           type: number
+ *           default: 30
  *       example:
- *         doctorId: "doctor123"
  *         dayOfWeek: "Monday"
  *         startTime: "09:00"
  *         endTime: "15:00"
  *         slotDuration: 30
- *         availability: true
  */
 
 /**
@@ -86,7 +104,7 @@ const router = express.Router();
  *       500:
  *         description: Failed to create the schedule
  */
-router.post("/", validateSchedule, createSchedule);
+router.post("/", protect, authorize("doctor"), validateSchedule, createSchedule);
 
 /**
  * @swagger
@@ -95,6 +113,7 @@ router.post("/", validateSchedule, createSchedule);
  *     tags:
  *       - Schedules
  *     summary: Get all schedules
+ *     security: []
  *     responses:
  *       200:
  *         description: List of all schedules
@@ -116,6 +135,7 @@ router.get("/", getSchedules);
  *     tags:
  *       - Schedules
  *     summary: Get schedules for a specific doctor
+ *     security: []
  *     parameters:
  *       - in: path
  *         name: doctorId
@@ -146,6 +166,7 @@ router.get("/doctor/:doctorId", getDoctorSchedules);
  *     tags:
  *       - Schedules
  *     summary: Get a schedule by ID
+ *     security: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -201,7 +222,7 @@ router.get("/:id", getScheduleById);
  *       500:
  *         description: Failed to update the schedule
  */
-router.put("/:id", protect, authorize("doctor", "admin"), validateSchedule, updateSchedule);
+router.put("/:id", protect, authorize("doctor"), validateSchedule, updateSchedule);
 
 /**
  * @swagger
@@ -231,7 +252,7 @@ router.put("/:id", protect, authorize("doctor", "admin"), validateSchedule, upda
  *       500:
  *         description: Failed to delete schedule
  */
-router.delete("/:id", protect, authorize("doctor", "admin"), deleteSchedule);
+router.delete("/:id", protect, authorize("doctor"), deleteSchedule);
 
 
 export default router;
