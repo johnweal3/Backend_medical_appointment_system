@@ -16,9 +16,6 @@ const VALID_STATUSES: AppointmentStatus[] = [
   "Cancelled",
 ];
 
-// Create Appointment
-// patientId always comes from the logged-in patient's token, never from the
-// request body — otherwise anyone could book an appointment "as" someone else.
 export const createAppointment = async (req: AuthRequest, res: Response) => {
   try {
     const patientId = req.user?.id;
@@ -110,9 +107,7 @@ export const createAppointment = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// Get All Appointments — admin only, since admins are the ones who oversee
-// every appointment in the system. Patients/doctors use the endpoints below
-// that are scoped to their own appointments.
+
 export const getAppointments = async (req: AuthRequest, res: Response) => {
   try {
     const status =

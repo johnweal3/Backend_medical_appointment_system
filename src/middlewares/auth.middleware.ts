@@ -11,16 +11,14 @@ export interface AuthRequest extends Request {
 export function protect(req: AuthRequest, res: Response, next: NextFunction): void {
   // 1. Extract Authorization header regardless of casing
   const authHeader = (req.headers.authorization || req.headers.Authorization) as string | undefined;
+let token: string | undefined;
 
-  let token: string | undefined;
-  if (authHeader) {
-    const parts = authHeader.trim().split(" ");
-    // Check for "Bearer <token>" case-insensitively
-    if (parts.length === 2 && /^Bearer$/i.test(parts[0])) {
-      token = parts[1];
-    }
+if (typeof authHeader === "string") {
+  const match = authHeader.trim().match(/^Bearer\s+(.+)$/i);
+  if (match) {
+    token = match[1];
   }
-
+}
   // 2. Return 401 if token is missing
   if (!token) {
     res.status(401).json({ message: "Unauthorized: No token provided" });
